@@ -119,7 +119,7 @@ class DatasetEvaluator:
                 "max_turns": 5,
                 "max_tokens_per_turn": 4096,
                 "save_intermediate_responses": True,
-                "openai_api_key": "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",
+                "openai_api_key": os.getenv("OPENAI_API_KEY", ""),
                 "openai_model": self.model_name,
                 "openai_temperature": 0.5,
             })

@@ -5,8 +5,8 @@ ENGINE=${1:-vllm}
 
 python -m verl.trainer.main_ppo \
     algorithm.adv_estimator=grpo \
-    data.train_files=../data/sat_0723/train0.parquet \
-    data.val_files=../data/cv_0722/test.parquet \
+    data.train_files=data/sat_0723/train0.parquet \
+    data.val_files=data/cv_0722/test.parquet \
     data.train_batch_size=128 \
     data.val_batch_size=128 \
     data.max_prompt_length=2560 \
@@ -51,5 +51,5 @@ python -m verl.trainer.main_ppo \
     trainer.save_freq=20 \
     trainer.test_freq=20 \
     trainer.total_epochs=1 \
-    trainer.rollout_data_dir=../responses/10 \
+    trainer.rollout_data_dir=responses/0 \
     custom_reward_function.path=verl/reward.py$@
