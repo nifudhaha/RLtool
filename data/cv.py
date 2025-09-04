@@ -5,6 +5,7 @@ import datasets
 from datasets import Dataset
 
 from qwen_vl_utils import smart_resize
+from prompt import *
 
 import sys
 
@@ -17,39 +18,25 @@ if __name__ == "__main__":
     
     # Get system prompt
     if args.prompt == 'agent':
-        from prompt_g_d import get_system_prompt
-        system_prompt = get_system_prompt()
+        system_prompt = RL_PROMPT
     elif args.prompt == 'text':
-        from prompt_text import get_system_prompt
-        system_prompt = get_system_prompt()
+        system_prompt = TEXT_RL_PROMPT
     elif args.prompt == 'none':
         system_prompt = None
     elif args.prompt == 'agent_api':
-        from prompt_g import get_system_prompt
-        system_prompt = get_system_prompt()
+        system_prompt = SFT_PROMPT
     else:
-        print(f"Unknown prompt type: {args.prompt}, using default agent prompt")
+        print(f"Unknown prompt type: {args.prompt}")
         exit(1)
 
     data_source = "nyu-visionx/CV-Bench"
 
     dataset = datasets.load_dataset(data_source)
-    # dataset = dataset.filter(lambda x: x['task'] == 'Depth')
 
-    # train_dataset = dataset["train"]
     test_dataset = dataset["test"]
-    # test_dataset = Dataset.from_dict(test_dataset[:100])
-    
-    # ratio = 0.8
-    # dataset_size = len(test_dataset)
-    # train_size = int(dataset_size * ratio)
-    
-    # # 随机分割数据集
-    # # 先将数据集打乱
+
     shuffled_dataset = test_dataset.shuffle(seed=42)
     
-    # # 分割成训练集和测试集
-    # # train_dataset = Dataset.from_dict(shuffled_dataset[:train_size])
     test_dataset = Dataset.from_dict(shuffled_dataset[:])
 
     # add a row to each data item that represents a unique id
@@ -91,10 +78,8 @@ if __name__ == "__main__":
 
         return process_fn
 
-    # train_dataset = train_dataset.map(function=make_map_fn("train"), with_indices=True, num_proc=8)
     test_dataset = test_dataset.map(function=make_map_fn("test"), with_indices=True, num_proc=8)
 
     local_dir = args.local_dir
 
-    # train_dataset.to_parquet(os.path.join(local_dir, "train.parquet"))
     test_dataset.to_parquet(os.path.join(local_dir, "test.parquet"))

@@ -15,9 +15,8 @@ DATASETS=(
     "blink"
     "mmmu"
     "mmbench"
-    "mme"
-    "realworldqa"
     "mathvista"
+    "blink-hard"
 )
 
 # Show usage instructions

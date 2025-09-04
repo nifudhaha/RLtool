@@ -1,8 +1,14 @@
 <h1 align="center">Reinforced Visual Perception with Tools</h1>
 
 <p align="center">
-<strong>Paper | <a href="https://huggingface.co/collections/Frywind/revpt-68b05161d2426128ea5db4d3">Models & Datasets Repo</a></strong>
+<strong><a href="https://arxiv.org/abs/2509.01656">📃Paper<a> | <a href="https://huggingface.co/collections/Frywind/revpt-68b05161d2426128ea5db4d3">🤗Models & Datasets Repo</a></strong>
 </p>
+
+This repository contains the official implementation for the paper **"Reinforced Visual Perception with Tools"**.
+
+Our work introduces **REVPT**, a novel framework designed to enhance the visual perception capabilities of multimodal large language models (MLLMs) through reinforcement learning (RL). **ReVPT** trains models to effectively reason about and utilize external visual tools, such as object detection, zoom-in, edge detection, and depth estimation, to solve complex visual perception tasks.
+
+<img src="assets/overview.png" alt="framework">
 
 ## Installation
 ```bash
@@ -31,24 +37,39 @@ python tools/lanuch_tools.py --config tools_config_2.json
 ```
 
 ## Train
-You can download data from [here](https://huggingface.co/datasets/Frywind/REVPT-data). Put them under `data`
-generate data using the following command:
+You can download data from [here](https://huggingface.co/datasets/Frywind/REVPT-data). Put them under `data`.
+
+Generate data using the following command:
 ```bash
 python data/sat_jsonl.py --local-dir [LOCAL_DIR]
 ```
 
-Change config in `./scripts`
+Change config in `scripts/run.sh`
 ```bash
 bash scripts/run.sh
 ```
 
 ## Eval
-You can download data from [here](https://huggingface.co/datasets/Frywind/REVPT-data). Put them under `data`
-datasets and prompts can be found in `eval/agent_eval.py`
+You can download data from [here](https://huggingface.co/datasets/Frywind/REVPT-data). Put them under `data`.
+
+Datasets and prompts can be found in `eval/agent_eval.py`. You can deploy vllm servers to run eval:
 ```bash
 cd eval
 python agent_eval.py --model-name [MODEL_NAME] --port-pool [PORT_POOL] --workers [WORKERS] --dataset [DATASET] --prompt [PROMPT] --evaluate
 ```
-parameter evaluate will use regex to extract answer in \boxed{} to compare with ground truth answer.
+The parameter 'evaluate' will use regex to extract answer in \boxed{} to compare with ground truth answer.
 
-or use `benchmark.sh` to run all datasets
+You can use `benchmark.sh` to run all datasets
+
+## Citation
+```bibtex
+@misc{zhou2025reinforcedvisualperceptiontools,
+      title={Reinforced Visual Perception with Tools}, 
+      author={Zetong Zhou and Dongping Chen and Zixian Ma and Zhihan Hu and Mingyang Fu and Sinan Wang and Yao Wan and Zhou Zhao and Ranjay Krishna},
+      year={2025},
+      eprint={2509.01656},
+      archivePrefix={arXiv},
+      primaryClass={cs.CV},
+      url={https://arxiv.org/abs/2509.01656}, 
+}
+```

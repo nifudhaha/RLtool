@@ -13,8 +13,8 @@ from omegaconf import DictConfig
 from tqdm import tqdm
 from PIL import Image
 
-from verl.api_agent import Agent
-from prompt_g import get_system_prompt
+from verl.workers.agent import APIAgent
+from prompt import SFT_PROMPT
 
 
 class AgentSynthesizer:
@@ -52,7 +52,7 @@ class AgentSynthesizer:
         with open(self.config_file, 'r') as f:
             return json.load(f)
     
-    def _create_agent(self) -> Agent:
+    def _create_agent(self) -> APIAgent:
         """Create and configure the Agent."""
         agent_config = DictConfig({
             "max_turns": 5,
@@ -62,7 +62,7 @@ class AgentSynthesizer:
             "openai_model": "gpt-4.1",
             "openai_temperature": 1.0,
         })
-        return Agent(agent_config)
+        return APIAgent(agent_config)
     
     def _save_base64_image(self, base64_str: str, sample_id: int, image_index: int) -> str:
         """Save base64 image to file and return filename."""
@@ -133,7 +133,7 @@ class AgentSynthesizer:
         
         return prompt, expected_answer
     
-    def _process_single_sample(self, args: Tuple[int, Dict, Agent, str]) -> Tuple[int, bool]:
+    def _process_single_sample(self, args: Tuple[int, Dict, APIAgent, str]) -> Tuple[int, bool]:
         """Process a single sample through the agent."""
         idx, sample, agent, image_dir = args
         
@@ -149,7 +149,7 @@ class AgentSynthesizer:
             
             # Get agent response
             response, conversation = agent.chat_with_tools(
-                system_prompt=get_system_prompt(),
+                system_prompt=SFT_PROMPT,
                 prompt='<image>' + sample_prompt,
                 images=[sample_image]
             )

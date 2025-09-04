@@ -8,7 +8,7 @@ import torch.distributed as dist
 from typing import List, Dict, Any, Optional, Tuple, Union
 from omegaconf import DictConfig
 from copy import deepcopy
-from verl.qwen_tools import fetch_tools
+from .qwen_tools import fetch_tools
 
 logger = logging.getLogger(__name__)
 

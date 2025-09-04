@@ -47,7 +47,7 @@ from verl.utils.debug import GPUMemoryLogger
 from verl.utils.torch_functional import get_response_mask, pad_2d_list_to_length
 from verl.workers.rollout.base import BaseRollout
 
-from verl.agent import Agent
+from verl.workers.agent import Agent
 from copy import deepcopy
 from PIL import Image
 

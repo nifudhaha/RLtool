@@ -299,14 +299,12 @@ async def predict_depth_map(file: UploadFile = File(...)):
         raise HTTPException(status_code=400, detail="Uploaded file must be an image")
 
     try:
-        # 读取上传的图像
         contents = await file.read()
         pil_image = Image.open(io.BytesIO(contents))
         if pil_image.mode != "RGB":
             pil_image = pil_image.convert("RGB")
         image = np.array(pil_image)
         
-        # 获取工作进程并处理
         worker = get_next_worker()
         result = worker.process_image(image, request_type="gray")
         
@@ -316,10 +314,8 @@ async def predict_depth_map(file: UploadFile = File(...)):
         depth_norm = result["depth_norm"]
         mode = result["mode"]
         
-        # 创建灰度深度图
         depth_image = Image.fromarray(depth_norm, mode=mode)
         
-        # 保存并返回深度图
         with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
             depth_image.save(tmp.name)
             return FileResponse(tmp.name, media_type="image/png", filename="depth_map_gray.png")

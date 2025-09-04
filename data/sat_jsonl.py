@@ -7,6 +7,7 @@ import polars as pl
 from tqdm import tqdm
 from verl.utils.hdfs_io import copy, makedirs
 from PIL import Image
+from prompt import *
 import sys
 
 
@@ -62,19 +63,17 @@ if __name__ == "__main__":
     
     # Get system prompt
     if args.prompt == 'agent':
-        from prompt_g_d import get_system_prompt
-        system_prompt = get_system_prompt()
+        system_prompt = RL_PROMPT
     elif args.prompt == 'text':
-        from prompt_text import get_system_prompt
-        system_prompt = get_system_prompt()
+        system_prompt = TEXT_RL_PROMPT
     elif args.prompt == 'none':
         system_prompt = None
     elif args.prompt == 'agent_api':
-        from prompt_g import get_system_prompt
-        system_prompt = get_system_prompt()
+        system_prompt = SFT_PROMPT
     else:
-        print(f"Unknown prompt type: {args.prompt}, using default agent prompt")
+        print(f"Unknown prompt type: {args.prompt}")
         exit(1)
+
 
     data_source = "sat"
 

@@ -15,7 +15,7 @@ import time
 
 logger = logging.getLogger(__name__)
 
-class Agent:
+class APIAgent:
     """
     Agent class for handling multi-turn action/observation interactions, using OpenAI API for conversation generation.
     Handles interaction between LLM and environment, supports multimodal observation.

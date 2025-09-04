@@ -15,26 +15,26 @@ from pydantic import BaseModel
 from typing import Optional
 from contextlib import asynccontextmanager
 
-# # 添加路径
+# # Add path
 # sys.path.append(os.path.join(os.getcwd(), "LLMDet"))
 
-# 导入 Hugging Face 相关库
+# Import HuggingFace related libraries
 from transformers import GroundingDinoProcessor
 from modeling_grounding_dino import GroundingDinoForObjectDetection
 
-# 设置多进程启动方法
+# Set multiprocessing start method
 mp.set_start_method('spawn', force=True)
 
-# 全局变量 - 模型工作进程池
+# Global variables - model worker pool
 worker_pool = []
 worker_index = 0
 
-# 使用 asynccontextmanager 替代 on_event
+# Use asynccontextmanager instead of on_event
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global worker_pool, worker_index
     
-    # 检测可用的GPU数量
+    # Detect number of available GPUs
     gpu_count = torch.cuda.device_count()
     if gpu_count == 0:
         print("No GPU devices available, will use CPU")
@@ -42,15 +42,15 @@ async def lifespan(app: FastAPI):
     else:
         print(f"Detected {gpu_count} GPU devices")
     
-    # 加载配置
-    # 这里可以从环境变量或配置文件加载默认配置
+    # Load configuration
+    # This can be loaded from environment variables or config files
     default_config = {
         "model_id": "fushh7/llmdet_swin_large_hf",  # HF model ID
         "box_threshold": 0.4,
         "text_threshold": 0.3,
     }
     
-    # 为每个GPU创建一个模型工作进程
+    # Create a model worker process for each GPU
     for gpu_id in range(gpu_count):
         device = f"cuda:{gpu_id}" if gpu_count > 1 else ("cuda:0" if gpu_count == 1 and torch.cuda.is_available() else "cpu")
         default_config["device"] = device
@@ -60,16 +60,16 @@ async def lifespan(app: FastAPI):
     
     print(f"Initialized model worker processes on {len(worker_pool)} devices")
     
-    # 应用运行期间的代码
+    # Code to run during application lifetime
     yield
     
-    # 应用关闭时的清理代码
+    # Cleanup code when application shuts down
     print("Shutting down all model worker processes")
     for worker in worker_pool:
         worker.stop()
     worker_pool = []
 
-# 使用 lifespan 参数创建 FastAPI 应用
+# Create FastAPI app with lifespan
 app = FastAPI(
     title="LLMDet API",
     description="API for LLMDet object detection",
@@ -79,7 +79,7 @@ app = FastAPI(
 
 class GroundingDINOWorker:
     def __init__(self, model_id, box_threshold=0.4, text_threshold=0.3, device="cpu"):
-        """初始化模型工作进程"""
+        """Initialize model worker process"""
         self.model_id = model_id
         self.box_threshold = box_threshold
         self.text_threshold = text_threshold
@@ -90,7 +90,7 @@ class GroundingDINOWorker:
         self.process = None
         
     def start(self):
-        """启动模型工作进程"""
+        """Start the model worker process"""
         self.process = mp.Process(
             target=self._worker_process, 
             args=(
@@ -103,34 +103,34 @@ class GroundingDINOWorker:
         
     def _worker_process(self, model_id, box_threshold, text_threshold, 
                         device, request_queue, result_queue):
-        """工作进程函数，加载模型并处理请求"""
+        """Worker process function: load model and handle requests"""
         try:
-            # 设置设备
+            # Set device
             if device.startswith("cuda:"):
                 gpu_id = int(device.split(":")[-1])
                 torch.cuda.set_device(gpu_id)
             
-            # 初始化 LLMDet 模型
+            # Initialize LLMDet model
             print(f"Loading LLMDet model to {device}...")
             processor = GroundingDinoProcessor.from_pretrained(model_id)
             model = GroundingDinoForObjectDetection.from_pretrained(model_id).to(device)
             
             print(f"Model loaded to {device}")
             
-            # 添加计数器，每处理N个请求就清理一次内存
+            # Add a counter to clean memory every N requests
             request_count = 0
-            clean_interval = 10  # 每处理10个请求清理一次
+            clean_interval = 10  # Clean once every 10 requests
 
-            # 处理请求循环
+            # Request handling loop
             while True:
                 try:
-                    # 获取请求
+                    # Get request
                     request_id, request_data = request_queue.get()
                     
-                    # 处理检测请求
+                    # Process detection request
                     image_pil, text_prompt = request_data
                     
-                    # 使用 HuggingFace 处理器和模型进行推理
+                    # Use HuggingFace processor and model to perform inference
                     inputs = processor(images=image_pil, text=text_prompt, return_tensors="pt").to(device)
                     
                     with torch.no_grad():
@@ -142,9 +142,9 @@ class GroundingDINOWorker:
                         box_threshold=box_threshold,
                         text_threshold=text_threshold,
                         target_sizes=[image_pil.size[::-1]]  # [height, width]
-                    )[0]  # 取第一个结果（单张图像）
+                    )[0]  # take the first result (single image)
                     
-                    # 检查是否检测到物体
+                    # Check if any objects detected
                     if len(results["boxes"]) == 0:
                         print(f"No '{text_prompt}' detected.")
                         result = {"message": f"No '{text_prompt}' detected"}
@@ -154,37 +154,37 @@ class GroundingDINOWorker:
                         del inputs, outputs, results
                         # -------------------------------------------------------------
                             
-                        continue  # 处理下一个请求
+                        continue  # handle next request
                     
-                    # 准备返回的对象信息
+                    # Prepare returned object info
                     detected_objects = []
                     
-                    # 收集检测到的对象信息
+                    # Gather detected object info
                     boxes = results["boxes"].cpu().numpy()
                     scores = results["scores"].cpu().numpy()
                     labels = results["labels"]
                     
                     for i, (box, score, label) in enumerate(zip(boxes, scores, labels)):
                         detected_objects.append({
-                            "id": i + 1,  # 从1开始的序号
+                            "id": i + 1,  # 1-based index
                             "label": label,
                             "bbox": box.tolist(),  # [x_min, y_min, x_max, y_max]
                             "confidence": float(score)
                         })
                     
-                    # 生成可视化结果
+                    # Generate visualization result
                     result_image = self._generate_visualization(
                         np.array(image_pil), 
                         boxes, 
-                        [str(i+1) for i in range(len(boxes))]  # 使用序号作为标签
+                        [str(i+1) for i in range(len(boxes))]  # use indices as labels
                     )
                     
-                    # 将结果存储为临时文件
+                    # Save the result as a temporary file
                     with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp:
                         plt.imsave(tmp.name, result_image)
                         tmp_filename = tmp.name
                             
-                    # 返回结果
+                    # Return result
                     result = {
                         "visualization_path": tmp_filename,
                         "detected_objects": detected_objects
@@ -218,37 +218,37 @@ class GroundingDINOWorker:
             traceback.print_exc()
     
     def _generate_visualization(self, image, boxes, labels):
-        """生成可视化结果
+        """Generate visualization result
         
-        参数:
-        - image: 原始图像
-        - boxes: 边界框
-        - labels: 标签（序号）
+        Parameters:
+        - image: original image (numpy array)
+        - boxes: bounding boxes
+        - labels: labels (indices)
         """
-        # 根据原始图像尺寸来设置图像大小
+        # Set figure size based on original image dimensions
         h, w = image.shape[:2]
-        dpi = 100  # 设置DPI
-        figsize = (w/dpi, h/dpi)  # 根据原始图像尺寸和DPI计算figsize
+        dpi = 100  # DPI setting
+        figsize = (w/dpi, h/dpi)  # compute figsize from image dims and DPI
         
         plt.figure(figsize=figsize, dpi=dpi)
         plt.imshow(image)
         
-        # 为每个序号创建随机颜色
+        # Create a random color for each label
         label_colors = {}
         for label in labels:
-            # 使用随机颜色而不是基于序号的固定颜色
-            rgb = np.random.random(3)  # 随机RGB值
+            # Use random colors instead of fixed colors based on index
+            rgb = np.random.random(3)  # random RGB values
             label_colors[label] = np.concatenate([rgb, np.array([1])], axis=0)
         
-        # 显示边界框
+        # Display bounding boxes
         for box, label in zip(boxes, labels):
             color = label_colors[label]
             self._show_box(box, plt.gca(), label, color)
         
         plt.axis('off')
-        plt.subplots_adjust(left=0, right=1, top=1, bottom=0, wspace=0, hspace=0) # 移除边距
+        plt.subplots_adjust(left=0, right=1, top=1, bottom=0, wspace=0, hspace=0) # Remove margins
         
-        # 将图形转换为图像
+        # Convert figure to image
         fig = plt.gcf()
         fig.canvas.draw()
         img_array = np.array(fig.canvas.renderer.buffer_rgba())
@@ -258,32 +258,32 @@ class GroundingDINOWorker:
         return img_array
         
     def _show_box(self, box, ax, label, color):
-        """显示框和序号标签"""
+        """Show box and label"""
         x0, y0 = box[0], box[1]
         w, h = box[2] - box[0], box[3] - box[1]
 
         ax.add_patch(plt.Rectangle((x0, y0), w, h, edgecolor=color, facecolor=(0,0,0,0), lw=2))
         
-        # 显示序号标签，增大字体大小并添加与边界框相同颜色的背景
+        # Show label with larger font and background matching box color
         text = ax.text(x0, y0-5, label, fontsize=12, color='white', 
                     bbox=dict(facecolor=color, alpha=0.8, pad=2))
 
     def process_request(self, image_pil, text_prompt):
-        """向工作进程提交处理请求并等待结果"""
+        """Submit a request to the worker process and wait for the result"""
         request_id = f"{time.time()}_{id(image_pil)}"
         self.request_queue.put((request_id, (image_pil, text_prompt)))
         
-        # 等待结果
+        # Wait for result
         while True:
             try:
-                result_id, result = self.result_queue.get(timeout=60)  # 60秒超时
+                result_id, result = self.result_queue.get(timeout=60)  # 60s timeout
                 if result_id == request_id:
                     return result
             except Exception as e:
-                raise RuntimeError(f"处理请求时超时或发生错误: {str(e)}")
+                raise RuntimeError(f"Timeout or error while processing request: {str(e)}")
                 
     def stop(self):
-        """停止工作进程"""
+        """Stop the worker process"""
         if self.process and self.process.is_alive():
             self.process.terminate()
             self.process.join(timeout=5)
@@ -291,7 +291,7 @@ class GroundingDINOWorker:
                 self.process.kill()
 
 def get_next_worker():
-    """简单的轮询调度获取下一个工作进程"""
+    """Simple round-robin scheduling to get the next worker process"""
     global worker_index, worker_pool
     
     if not worker_pool:
@@ -309,41 +309,41 @@ async def detect_objects(
     text_threshold: Optional[float] = Form(0.3)
 ):
     """
-    上传图像和文本提示进行对象检测
+    Upload an image and text prompt for object detection
     
-    参数:
-    - file: 上传的图像文件
-    - text_prompt: 用于指定要检测的对象的文本描述
-    - box_threshold: 检测框置信度阈值
-    - text_threshold: 文本匹配阈值
+    Parameters:
+    - file: uploaded image file
+    - text_prompt: text description specifying objects to detect
+    - box_threshold: bounding box confidence threshold
+    - text_threshold: text matching threshold
     
-    返回:
-    - 可视化结果图像和检测到的对象详细信息
+    Returns:
+    - visualization image path and detailed detected objects information
     """
     if not file.content_type.startswith("image/"):
         raise HTTPException(status_code=400, detail="Uploaded file must be an image")
     
     try:
-        # 读取上传的图像
+        # Read uploaded image
         contents = await file.read()
         image_pil = Image.open(io.BytesIO(contents))
-        # 转换为RGB确保格式正确
+        # Convert to RGB to ensure correct format
         if image_pil.mode != "RGB":
             image_pil = image_pil.convert("RGB")
         
-        # 获取工作进程并处理
+        # Get a worker and process the request
         worker = get_next_worker()
         result = worker.process_request(image_pil, text_prompt)
         
-        # 检查结果类型
+        # Check result type
         if "message" in result:
-            # 如果未检测到对象，返回 JSON 消消息
+            # If no objects detected, return JSON message
             return JSONResponse(content=result, status_code=200)
         
         if "error" in result:
             raise Exception(result["error"])
         
-        # 返回可视化结果和检测到的对象信息
+        # Return visualization path and detected objects info
         visualization_path = result["visualization_path"]
         detected_objects = result.get("detected_objects", [])
         

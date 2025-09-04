@@ -14,13 +14,15 @@ from omegaconf import DictConfig
 from datasets import load_dataset, Dataset
 from openai import OpenAI
 from typing import List, Tuple, Dict, Any, Optional, Callable
+from data.prompt import *
+from verl.workers.agent import APIAgent
 import io
 import pandas as pd
 
 sys.path.append('..')
 
 def verify(response, answer):
-    """验证响应是否正确"""
+    """Verify whether the response is correct"""
     if not response:
         return False
     if answer.startswith('('):
@@ -40,28 +42,28 @@ class DatasetEvaluator:
         self.timestamp = time.strftime('%Y%m%d_%H%M%S')
         self.evaluate = evaluate
         
-        # 端口轮询相关
+        # Port round-robin related
         self.port_lock = threading.Lock()
         self.port_index = 0
         
-        # 文件写入锁
+        # File write lock
         self.file_lock = threading.Lock()
         
-        # 线程池执行器
+        # Thread pool executor
         self.executor = None
         
-        # 设置信号处理器
+        # Setup signal handlers
         signal.signal(signal.SIGINT, self._signal_handler)
         signal.signal(signal.SIGTERM, self._signal_handler)
 
     def _signal_handler(self, sig, frame):
-        print("\n正在优雅地关闭程序，请稍候...")
+        print("\nGracefully shutting down, please wait...")
         if self.executor is not None:
             self.executor.shutdown(wait=False)
         sys.exit(0)
 
     def get_next_port(self) -> int:
-        """从端口池中轮询获取下一个可用端口"""
+        """Get the next available port from the pool in round-robin"""
         with self.port_lock:
             current_port = self.port_pool[self.port_index]
             self.port_index = (self.port_index + 1) % len(self.port_pool)
@@ -83,7 +85,7 @@ class DatasetEvaluator:
         return filename
 
     def process_conversation_images(self, conversation: List[Dict], image_dir: str, sample_id: int) -> List[Dict]:
-        """Process images in conversation"""
+        """Process images within the conversation messages"""
         new_conversation = []
         image_index = 0
         
@@ -113,7 +115,7 @@ class DatasetEvaluator:
         return new_conversation
 
     def create_agent(self, port: int):
-        """创建一个Agent实例"""
+        """Create an Agent instance"""
         if self.isremote:
             agent_config = DictConfig({
                 "max_turns": 5,
@@ -134,12 +136,11 @@ class DatasetEvaluator:
                 "openai_temperature": 0.2,
             })
 
-        from verl.api_agent_new import Agent
-        return Agent(agent_config)
+        return APIAgent(agent_config)
 
     def _base_process_sample(self, idx: int, prompt: str, images: List[Image.Image], 
                            image_dir: str, output_path: str, result_data: Dict[str, Any]) -> Tuple[int, bool]:
-        """基础样本处理函数，包含公共逻辑"""
+        """Base sample processing function that contains common logic"""
         try:
             port = self.get_next_port()
             
@@ -152,19 +153,19 @@ class DatasetEvaluator:
             
             conversation = self.process_conversation_images(conversation, image_dir, idx)
             
-            # 构建基础结果
+            # Build base result
             result = {
                 'sample_id': idx,
                 'response': response,
                 'conversation': conversation,
-                **result_data  # 合并传入的结果数据
+                **result_data  # merge provided result data
             }
             
-            # 如果需要评估，添加验证结果
+            # If evaluation is enabled, add verification result
             if self.evaluate and 'answer' in result_data:
                 result['is_correct'] = verify(response, result_data['answer'])
             
-            # 写入文件
+            # Write to file
             with self.file_lock:
                 with open(output_path, 'a') as f:
                     f.write(json.dumps(result) + '\n')
@@ -175,7 +176,7 @@ class DatasetEvaluator:
             return idx, False
 
     def process_cvbench_sample(self, args: Tuple) -> Tuple[int, bool]:
-        """处理CV-Bench样本"""
+        """Process CV-Bench sample"""
         idx, sample, image_dir, output_path = args
         
         prompt = '<image>' + sample['prompt']
@@ -198,7 +199,7 @@ class DatasetEvaluator:
         return self._base_process_sample(idx, prompt, images, image_dir, output_path, result_data)
 
     def process_mmstar_sample(self, args: Tuple) -> Tuple[int, bool]:
-        """处理MMStar样本"""
+        """Process MMStar sample"""
         idx, sample, image_dir, output_path = args
         
         prompt = sample['question']
@@ -219,7 +220,7 @@ class DatasetEvaluator:
         return self._base_process_sample(idx, prompt, images, image_dir, output_path, result_data)
 
     def process_blink_sample(self, args: Tuple) -> Tuple[int, bool]:
-        """处理BLINK样本"""
+        """Process BLINK sample"""
         idx, sample, image_dir, output_path = args
         
         prompt = '<image>' + sample['prompt']
@@ -239,7 +240,7 @@ class DatasetEvaluator:
         return self._base_process_sample(idx, prompt, images, image_dir, output_path, result_data)
 
     def process_sat_sample(self, args: Tuple) -> Tuple[int, bool]:
-        """处理SAT样本"""
+        """Process SAT sample"""
         idx, sample, image_dir, output_path = args
         
         sample_question = sample['processed_mcqa']['question']
@@ -269,7 +270,7 @@ class DatasetEvaluator:
         return self._base_process_sample(idx, prompt, images, image_dir, output_path, result_data)
 
     def process_mmvp_sample(self, args: Tuple) -> Tuple[int, bool]:
-        """处理MMVP样本"""
+        """Process MMVP sample"""
         idx, sample, image_dir, output_path = args
         
         prompt = sample['Question'] + f"\nAnswer from the following options:\n{sample['Options']}"
@@ -290,7 +291,7 @@ class DatasetEvaluator:
         return self._base_process_sample(idx, prompt, images, image_dir, output_path, result_data)
 
     def process_natural_sample(self, args: Tuple) -> Tuple[int, bool]:
-        """处理NaturalBench样本"""
+        """Process NaturalBench sample"""
         idx, sample, image_dir, output_path = args
         
         prompt = sample['question']
@@ -318,7 +319,7 @@ class DatasetEvaluator:
         return self._base_process_sample(idx, prompt, images, image_dir, output_path, result_data)
 
     def process_blink_hard_sample(self, args: Tuple) -> Tuple[int, bool]:
-        """处理BLINK Hard样本"""
+        """Process BLINK Hard sample"""
         idx, sample, image_dir, output_path = args
         
         prompt = '<image>' + sample['prompt']
@@ -336,7 +337,7 @@ class DatasetEvaluator:
         return self._base_process_sample(idx, prompt, images, image_dir, output_path, result_data)
 
     def process_tallyqa_sample(self, args: Tuple) -> Tuple[int, bool]:
-        """处理TallyQA样本"""
+        """Process TallyQA sample"""
         idx, sample, image_dir, output_path = args
         
         prompt = '<image>' + sample['question'] + '\nPut the number of the answer in \\boxed{}.'
@@ -349,53 +350,35 @@ class DatasetEvaluator:
         
         return self._base_process_sample(idx, prompt, images, image_dir, output_path, result_data)
 
-    def process_aokvqa_sample(self, args: Tuple) -> Tuple[int, bool]:
-        """处理AOKVQA样本"""
-        idx, sample, image_dir, output_path = args
-        
-        prompt = sample['question'] + '\nAnswer from the following choices:\n'
-        for i, choice in enumerate(sample['choices']):
-            prompt += f"({chr(65+i)}) {choice}\n"
-        prompt = '<image>' + prompt + 'Your answer should include \\boxed{answer letter}.'
-        
-        images = [sample['image']]
-        
-        result_data = {
-            'question': sample['question'],
-            'answer': chr(65+sample['correct_choice_idx'])
-        }
-        
-        return self._base_process_sample(idx, prompt, images, image_dir, output_path, result_data)
-
     def process_mmmu_sample(self, args: Tuple) -> Tuple[int, bool]:
-        """处理MMMU样本"""
+        """Process MMMU sample"""
         idx, sample, image_dir, output_path = args
         
-        # 获取样本数据
+        # Extract sample data
         sample_question = sample['question']
         from ast import literal_eval
         sample_options = literal_eval(sample['options'])
         sample_answer = sample['answer']
         sample_images = []
         
-        # 处理图像 - MMMU可能有多个图像
-        for i in range(1, 8):  # MMMU最多可以有7个图像
+        # Handle images - MMMU may have multiple images
+        for i in range(1, 8):  # MMMU can have up to 7 images
             img_key = f'image_{i}'
             if img_key in sample and sample[img_key] is not None:
                 sample_images.append(sample[img_key])
         
-        # 如果没有编号图像，检查'image'键
+        # If no numbered images, check 'image' key
         if not sample_images and 'image' in sample and sample['image'] is not None:
             sample_images.append(sample['image'])
         
-        # 构建带选项的提示
+        # Build prompt with options
         prompt = sample_question
         if sample_options:
             prompt += "\nPlease select from the following options:\n"
             for i, option in enumerate(sample_options):
                 prompt += f"({chr(65+i)}) {option}\n"
         
-        # 如果存在图像，添加图像占位符
+        # If images exist, add image placeholders
         if sample_images:
             image_placeholder = '<image>' * len(sample_images)
             prompt = image_placeholder + prompt
@@ -410,13 +393,13 @@ class DatasetEvaluator:
                                        image_dir, output_path, result_data)
 
     def process_mmbench_sample(self, args: Tuple) -> Tuple[int, bool]:
-        """处理MMBench样本"""
+        """Process MMBench sample"""
         idx, sample, image_dir, output_path = args
         
         prompt = '<image>' + sample['question']
         images = [Image.open(io.BytesIO(base64.b64decode(sample['image'])))]
         
-        # 构建选项字典
+        # Build options dict
         options = ['A', 'B', 'C', 'D']
         options_dict = {opt: sample.get(opt, '') for opt in options if sample.get(opt)}
         prompt += "\nAnswer from the following options:"
@@ -432,92 +415,8 @@ class DatasetEvaluator:
         
         return self._base_process_sample(idx, prompt, images, image_dir, output_path, result_data)
 
-    def process_mmvet_sample(self, args: Tuple) -> Tuple[int, bool]:
-        """处理MM-Vet样本"""
-        idx, sample, image_dir, output_path = args
-        
-        prompt = '<image>' + sample['question']
-        images = [sample['image']]
-        
-        result_data = {
-            'question': sample['question'],
-            'answer': sample['answer'],
-            'capability': sample.get('capability', []),
-            'metadata': {
-                'base_image_dir': image_dir,
-                'imagename': sample.get('imagename', ''),
-                'category': sample.get('category', '')
-            }
-        }
-        
-        return self._base_process_sample(idx, prompt, images, image_dir, output_path, result_data)
-    
-    def process_mme_sample(self, args: Tuple) -> Tuple[int, bool]:
-        """处理MME样本"""
-        idx, sample, image_dir, output_path = args
-        
-        prompt = '<image>' + sample['question']
-        images = [sample['image']]
-        
-        result_data = {
-            'question': sample['question'],
-            'answer': sample['answer'],
-            'category': sample.get('category', ''),
-            'metadata': {
-                'base_image_dir': image_dir,
-                'image_path': sample.get('image_path', ''),
-                'question_id': sample.get('question_id', idx)
-            }
-        }
-        
-        return self._base_process_sample(idx, prompt, images, image_dir, output_path, result_data)
-
-    def process_realworldqa_sample(self, args: Tuple) -> Tuple[int, bool]:
-        """处理RealworldQA样本"""
-        idx, sample, image_dir, output_path = args
-
-        prompt = '<image>' + sample['question']
-        # RealworldQA图片字段假设为'image'，如有不同请调整
-        images = [sample['image']]
-
-        result_data = {
-            'question': sample['question'],
-            'answer': sample['answer'],
-            'metadata': {
-                'base_image_dir': image_dir,
-                'id': sample.get('id', idx)
-            }
-        }
-
-        return self._base_process_sample(idx, prompt, images, image_dir, output_path, result_data)
-
-    def process_mathvista_sample(self, args: Tuple) -> Tuple[int, bool]:
-        """处理MathVista样本"""
-        idx, sample, image_dir, output_path = args
-        
-        # 构建提示，MathVista通常包含问题和可能的选项
-        prompt = '<image>' + sample['question']
-        
-        # 添加选项
-        if 'choices' in sample and sample['choices']:
-            prompt += '\nAnswer from the following options:\n'
-            for i, choice in enumerate(sample['choices']):
-                prompt += f'{chr(65+i)}. {choice}\n'
-
-        images = [sample['decoded_image']]
-        
-        result_data = {
-            'question': sample['question'],
-            'answer': chr(65 + sample['choices'].index(sample['answer'])) if sample['choices'] else sample['answer'],
-            'metadata': {
-                'base_image_dir': image_dir,
-            }
-        }
-        
-        return self._base_process_sample(idx, prompt, images, image_dir, output_path, result_data)
-
     def run_parallel_evaluation(self, args_list: List[Tuple], process_func: Callable) -> Tuple[int, int]:
-        """运行并行评估"""
+        """Run parallel evaluation"""
         self.executor = concurrent.futures.ThreadPoolExecutor(max_workers=self.workers)
         try:
             results = list(tqdm(self.executor.map(process_func, args_list), total=len(args_list)))
@@ -531,22 +430,22 @@ class DatasetEvaluator:
 
     def _base_evaluate(self, dataset_name: str, dataset_loader: Callable, process_func: Callable, 
                       dataset_args: Optional[Dict] = None):
-        """基础评估函数，包含公共的评估流程"""
-        # 设置分层输出路径：evaluation/model/benchmark
+        """Base evaluation function that contains common evaluation flow"""
+        # Set hierarchical output paths: evaluation/model/benchmark
         base_dir = f"{self.model_name}/{dataset_name}"
         output_path = f"{base_dir}/results_{self.timestamp}.jsonl"
         image_dir = f"{base_dir}/images_{self.timestamp}"
         
-        # 创建分层目录结构
+        # Create directories
         os.makedirs(base_dir, exist_ok=True)
         os.makedirs(image_dir, exist_ok=True)
         
-        # 创建空文件
+        # Create empty file if not exists
         if not os.path.exists(output_path):
             with open(output_path, 'w') as f:
                 pass
         
-        # 加载数据集
+        # Load dataset
         print(f"Loading {dataset_name} dataset...")
         if dataset_args:
             dataset = dataset_loader(**dataset_args)
@@ -555,17 +454,17 @@ class DatasetEvaluator:
         
         print(f"Starting evaluation of {len(dataset)} {dataset_name} samples using {self.workers} parallel worker threads")
         
-        # 准备参数列表
+        # Prepare argument list
         args_list = [(idx, sample, image_dir, output_path) 
                     for idx, sample in enumerate(dataset)]
         
-        # 运行评估
+        # Run evaluation
         success_count, fail_count = self.run_parallel_evaluation(args_list, process_func)
         
         print(f"{dataset_name} evaluation complete, results saved to {output_path}")
         print(f"Successfully processed: {success_count} samples, Failed: {fail_count} samples")
 
-    # 各数据集的评估方法
+    # Evaluation methods for each dataset
     def evaluate_cvbench(self):
         def load_cvbench():
             ds = load_dataset("nyu-visionx/CV-Bench", "default")
@@ -593,14 +492,6 @@ class DatasetEvaluator:
         
         self._base_evaluate("blink", load_blink, self.process_blink_sample)
 
-    def evaluate_sat(self):
-        def load_sat():
-            with open('/mnt/gold/cdp/zzt/datasets/sat/sft_remain.jsonl', 'r') as f:
-                sat_dataset = [json.loads(line) for line in f]
-            return sat_dataset[:1000]
-        
-        self._base_evaluate("sat", load_sat, self.process_sat_sample)
-
     def evaluate_mmvp(self):
         def load_mmvp():
             mmvp_dataset = load_dataset("parquet", data_files="../data/mmvp_val.parquet")
@@ -608,47 +499,12 @@ class DatasetEvaluator:
         
         self._base_evaluate("mmvp", load_mmvp, self.process_mmvp_sample)
 
-    def evaluate_naturalbench(self):
-        def load_naturalbench():
-            natural_dataset = load_dataset("BaiqiL/NaturalBench")
-            natural_train_dataset = []
-            
-            for item in natural_dataset["train"]:
-                for i in range(0, 2):
-                    for j in range(0, 2):
-                        natural_train_dataset.append({
-                            'index': item['Index']*4+i*2+j,
-                            'image': item[f"Image_{i}"],
-                            'question': item[f"Question_{j}"],
-                            'question_type': item['Question_Type'],
-                            'answer': item[f"Image_{i}_Question_{j}"]
-                        })
-            return natural_train_dataset
-        
-        self._base_evaluate("naturalbench", load_naturalbench, self.process_natural_sample)
-
     def evaluate_blink_hard(self):
         def load_blink_hard():
             blink_hard_dataset = load_dataset("parquet", data_files="../data/blink_hard_dataset.parquet")
             return blink_hard_dataset["train"]
         
         self._base_evaluate("blink-hard", load_blink_hard, self.process_blink_hard_sample)
-
-    def evaluate_tallyqa(self):
-        def load_tallyqa():
-            with open('/mnt/gold/cdp/zzt/datasets/tallyqa/tallyqa_vg.json') as f:
-                return json.load(f)
-        
-        self._base_evaluate("tallyqa", load_tallyqa, self.process_tallyqa_sample)
-
-    def evaluate_aokvqa(self):
-        def load_aokvqa():
-            return load_dataset('parquet', data_files=[
-                '/mnt/gold/cdp/zzt/datasets/aokvqa/data/train0.parquet', 
-                '/mnt/gold/cdp/zzt/datasets/aokvqa/data/train1.parquet'
-            ], split='train')
-        
-        self._base_evaluate("aokvqa", load_aokvqa, self.process_aokvqa_sample)
 
     def evaluate_mmmu(self):
         def load_mmmu():
@@ -670,31 +526,9 @@ class DatasetEvaluator:
 
     def evaluate_mmbench(self):
         def load_mmbench():
-            return Dataset.from_pandas(pd.read_csv('MMBench_DEV_EN_legacy.tsv', sep='\t'))
+            return load_dataset("HuggingFaceM4/MMBench_dev")
         
         self._base_evaluate("mmbench", load_mmbench, self.process_mmbench_sample)
-
-    def evaluate_mmvet(self):
-        def load_mmvet():
-            mmvet_dataset = load_dataset("whyu/MM-Vet")
-            return mmvet_dataset["test"]
-        
-        self._base_evaluate("mmvet", load_mmvet, self.process_mmvet_sample)
-        
-    def evaluate_mme(self):
-        def load_mme():
-            mme_dataset = load_dataset("darkyarding/MME")
-            return mme_dataset["test"]
-        
-        self._base_evaluate("mme", load_mme, self.process_mme_sample)
-
-    def evaluate_realworldqa(self):
-        def load_realworldqa():
-            # 假设数据集已上传到HF datasets，或本地parquet/jsonl文件
-            # 下面以parquet为例，如有不同请调整
-            realworldqa_dataset = load_dataset("lmms-lab/RealWorldQA")
-            return realworldqa_dataset["test"]
-        self._base_evaluate("realworldqa", load_realworldqa, self.process_realworldqa_sample)
 
     def evaluate_mathvista(self):
         def load_mathvista():
@@ -705,18 +539,16 @@ class DatasetEvaluator:
 
 
 def get_system_prompt(prompt_type: str) -> str:
-    """获取系统提示"""
+    """Get system prompt"""
+    # Get system prompt
     if prompt_type == 'agent':
-        from data.prompt_g_d import get_system_prompt
-        return get_system_prompt()
+        system_prompt = RL_PROMPT
     elif prompt_type == 'text':
-        from data.prompt_text import get_system_prompt
-        return get_system_prompt()
+        system_prompt = TEXT_RL_PROMPT
     elif prompt_type == 'none':
-        return None
+        system_prompt = None
     elif prompt_type == 'agent_api':
-        from data.prompt_g import get_system_prompt
-        return get_system_prompt()
+        system_prompt = SFT_PROMPT
     else:
         raise ValueError(f"Unknown prompt type: {prompt_type}")
 
@@ -732,11 +564,11 @@ def main():
     parser.add_argument('--evaluate', action='store_true', help='Enable answer verification')
     args = parser.parse_args()
 
-    # 解析端口池
+    # Parse port pool
     port_pool = [int(port.strip()) for port in args.port_pool.split(',')]
-    print(f"使用端口池: {port_pool}")
+    print(f"Using port pool: {port_pool}")
     
-    # 获取系统提示
+    # Get system prompt
     try:
         instruction_following = get_system_prompt(args.prompt)
         print(f"System prompt: {instruction_following}")
@@ -744,7 +576,7 @@ def main():
         print(str(e))
         return
     
-    # 创建评估器
+    # Create evaluator
     evaluator = DatasetEvaluator(
         model_name=args.model_name,
         port_pool=port_pool,
@@ -754,26 +586,20 @@ def main():
         evaluate=args.evaluate
     )
     
-    # 数据集评估方法映射
+    # Mapping of dataset evaluation methods
     dataset_methods = {
         'cvbench': evaluator.evaluate_cvbench,
         'mmstar': evaluator.evaluate_mmstar,
         'blink': evaluator.evaluate_blink,
-        'sat': evaluator.evaluate_sat,
-        'naturalbench': evaluator.evaluate_naturalbench,
         'blink-hard': evaluator.evaluate_blink_hard,
         'mmvp': evaluator.evaluate_mmvp,
         'tallyqa': evaluator.evaluate_tallyqa,
-        'aokvqa': evaluator.evaluate_aokvqa,
         'mmmu': evaluator.evaluate_mmmu,
         'mmbench': evaluator.evaluate_mmbench,
-        'mmvet': evaluator.evaluate_mmvet,
-        'mme': evaluator.evaluate_mme,
-        'realworldqa': evaluator.evaluate_realworldqa,
         'mathvista': evaluator.evaluate_mathvista,  
     }
     
-    # 运行对应的评估方法
+    # Run the selected evaluation method
     if args.dataset in dataset_methods:
         dataset_methods[args.dataset]()
     else:

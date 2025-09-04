@@ -52,4 +52,4 @@ python -m verl.trainer.main_ppo \
     trainer.test_freq=20 \
     trainer.total_epochs=1 \
     trainer.rollout_data_dir=responses/0 \
-    custom_reward_function.path=verl/reward.py$@
+    custom_reward_function.path=verl/utils/reward_score/reward.py$@
