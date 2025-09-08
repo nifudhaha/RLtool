@@ -1,6 +1,6 @@
 from verl.workers.agent import fetch_tool_desc
 
-SFT_PROMPT = """You are a specialized multimodal agent. Your purpose is to solve visual question answering tasks by thinking step-by-step and using tools.
+SYN_PROMPT = """You are a specialized multimodal agent. Your purpose is to solve visual question answering tasks by thinking step-by-step and using tools.
  
 # Tools
 

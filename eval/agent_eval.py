@@ -548,7 +548,7 @@ def get_system_prompt(prompt_type: str) -> str:
     elif prompt_type == 'none':
         system_prompt = None
     elif prompt_type == 'agent_api':
-        system_prompt = SFT_PROMPT
+        system_prompt = SYN_PROMPT
     else:
         raise ValueError(f"Unknown prompt type: {prompt_type}")
 

@@ -69,7 +69,7 @@ if __name__ == "__main__":
     elif args.prompt == 'none':
         system_prompt = None
     elif args.prompt == 'agent_api':
-        system_prompt = SFT_PROMPT
+        system_prompt = SYN_PROMPT
     else:
         print(f"Unknown prompt type: {args.prompt}")
         exit(1)

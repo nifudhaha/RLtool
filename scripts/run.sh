@@ -1,12 +1,15 @@
 set -x
 ENGINE=${1:-vllm}
+CKPT_PATH=
+TRAIN_FILES=
+VAL_FILES=
 # If you are using vllm<=0.6.3, you might need to set the following environment variable to avoid bugs:
 # export VLLM_ATTENTION_BACKEND=XFORMERS
 
 python -m verl.trainer.main_ppo \
     algorithm.adv_estimator=grpo \
-    data.train_files=data/sat_0723/train0.parquet \
-    data.val_files=data/cv_0722/test.parquet \
+    data.train_files=$TRAIN_FILES \
+    data.val_files=$VAL_FILES \
     data.train_batch_size=128 \
     data.val_batch_size=128 \
     data.max_prompt_length=2560 \
@@ -14,14 +17,14 @@ python -m verl.trainer.main_ppo \
     data.filter_overlong_prompts=False \
     data.truncation='error' \
     data.image_key=images \
-    actor_rollout_ref.model.path= \
+    actor_rollout_ref.model.path=$CKPT_PATH \
     actor_rollout_ref.actor.optim.lr=2e-6 \
     actor_rollout_ref.actor.optim.lr_warmup_steps_ratio=0.03 \
     actor_rollout_ref.model.use_remove_padding=True \
     actor_rollout_ref.actor.ppo_mini_batch_size=128 \
     actor_rollout_ref.actor.ppo_micro_batch_size_per_gpu=8 \
     actor_rollout_ref.actor.use_kl_loss=True \
-    actor_rollout_ref.actor.kl_loss_coef=0.01 \
+    actor_rollout_ref.actor.kl_loss_coef=0.001 \
     actor_rollout_ref.actor.kl_loss_type=low_var_kl \
     actor_rollout_ref.actor.entropy_coeff=0 \
     actor_rollout_ref.model.enable_gradient_checkpointing=True \
@@ -45,7 +48,7 @@ python -m verl.trainer.main_ppo \
     trainer.logger=['console','wandb'] \
     trainer.project_name='visual_process_r1' \
     trainer.experiment_name='qwen2_5_vl_7b_mix_0' \
-    trainer.val_before_train=False \
+    trainer.val_before_train=True \
     trainer.n_gpus_per_node=4 \
     trainer.nnodes=1 \
     trainer.save_freq=20 \

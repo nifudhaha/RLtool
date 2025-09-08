@@ -14,7 +14,7 @@ from tqdm import tqdm
 from PIL import Image
 
 from verl.workers.agent import APIAgent
-from prompt import SFT_PROMPT
+from prompt import SYN_PROMPT
 
 
 class AgentSynthesizer:
@@ -149,7 +149,7 @@ class AgentSynthesizer:
             
             # Get agent response
             response, conversation = agent.chat_with_tools(
-                system_prompt=SFT_PROMPT,
+                system_prompt=SYN_PROMPT,
                 prompt='<image>' + sample_prompt,
                 images=[sample_image]
             )
