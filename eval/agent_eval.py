@@ -19,7 +19,7 @@ from verl.workers.agent import APIAgent
 import io
 import pandas as pd
 
-sys.path.append('..')
+
 
 def verify(response, answer):
     """Verify whether the response is correct"""
@@ -551,6 +551,8 @@ def get_system_prompt(prompt_type: str) -> str:
         system_prompt = SYN_PROMPT
     else:
         raise ValueError(f"Unknown prompt type: {prompt_type}")
+    
+    return system_prompt
 
 
 def main():
@@ -593,7 +595,6 @@ def main():
         'blink': evaluator.evaluate_blink,
         'blink-hard': evaluator.evaluate_blink_hard,
         'mmvp': evaluator.evaluate_mmvp,
-        'tallyqa': evaluator.evaluate_tallyqa,
         'mmmu': evaluator.evaluate_mmmu,
         'mmbench': evaluator.evaluate_mmbench,
         'mathvista': evaluator.evaluate_mathvista,  
