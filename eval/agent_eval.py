@@ -239,36 +239,6 @@ class DatasetEvaluator:
         
         return self._base_process_sample(idx, prompt, images, image_dir, output_path, result_data)
 
-    def process_sat_sample(self, args: Tuple) -> Tuple[int, bool]:
-        """Process SAT sample"""
-        idx, sample, image_dir, output_path = args
-        
-        sample_question = sample['processed_mcqa']['question']
-        sample_options = sample['processed_mcqa']['options']
-        sample_answer_idx = sample['processed_mcqa']['answer']
-        image_path = sample['images'][0]
-        
-        sample_image = Image.open(image_path)
-        
-        options_text = "Answer from the following choices:"
-        for i, option in enumerate(sample_options):
-            options_text += f"\n({chr(65+i)}) {option}"
-        
-        prompt = f"{sample_question}{options_text}\nThe answer is {chr(65 + sample_answer_idx)}"
-        images = [sample_image]
-        
-        result_data = {
-            'question': sample_question,
-            'options': sample_options,
-            'answer': chr(65 + sample_answer_idx),
-            'metadata': {
-                'base_image_dir': image_dir,
-                'id': sample.get('id', '')
-            }
-        }
-        
-        return self._base_process_sample(idx, prompt, images, image_dir, output_path, result_data)
-
     def process_mmvp_sample(self, args: Tuple) -> Tuple[int, bool]:
         """Process MMVP sample"""
         idx, sample, image_dir, output_path = args
@@ -290,33 +260,6 @@ class DatasetEvaluator:
         
         return self._base_process_sample(idx, prompt, images, image_dir, output_path, result_data)
 
-    def process_natural_sample(self, args: Tuple) -> Tuple[int, bool]:
-        """Process NaturalBench sample"""
-        idx, sample, image_dir, output_path = args
-        
-        prompt = sample['question']
-        if sample['question_type'] == 'yes_no':
-            prompt += '\nSelect from the following options:\n(A) Yes\n(B) No'
-            answer = 'A' if sample['answer'] == 'Yes' else 'B'
-        elif sample['question_type'] == 'multiple_choice':
-            prompt += 'Please output the letter corresponding to the correct option.'
-            answer = sample['answer']
-        else:
-            answer = sample['answer']
-        
-        prompt = '<image>' + prompt
-        images = [sample['image']]
-        
-        result_data = {
-            'question': sample['question'],
-            'answer': answer,
-            'metadata': {
-                'base_image_dir': image_dir,
-                'idx': sample.get('index', '')
-            }
-        }
-        
-        return self._base_process_sample(idx, prompt, images, image_dir, output_path, result_data)
 
     def process_blink_hard_sample(self, args: Tuple) -> Tuple[int, bool]:
         """Process BLINK Hard sample"""
@@ -332,20 +275,6 @@ class DatasetEvaluator:
             'metadata': {
                 'base_image_dir': image_dir
             }
-        }
-        
-        return self._base_process_sample(idx, prompt, images, image_dir, output_path, result_data)
-
-    def process_tallyqa_sample(self, args: Tuple) -> Tuple[int, bool]:
-        """Process TallyQA sample"""
-        idx, sample, image_dir, output_path = args
-        
-        prompt = '<image>' + sample['question'] + '\nPut the number of the answer in \\boxed{}.'
-        images = [Image.open(sample['image'])]
-        
-        result_data = {
-            'question': sample['question'],
-            'answer': sample['answer']
         }
         
         return self._base_process_sample(idx, prompt, images, image_dir, output_path, result_data)
