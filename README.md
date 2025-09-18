@@ -52,7 +52,11 @@ bash scripts/run.sh
 ## Eval
 You can download data from [here](https://huggingface.co/datasets/Frywind/REVPT-data). Put them under `data`.
 
-Datasets and prompts can be found in `eval/agent_eval.py`. You can deploy vllm servers to run eval:
+Datasets and prompts can be found in `eval/agent_eval.py`. You can deploy vllm servers:
+```bash
+bash scripts/deploy.sh [MODEL_PATH] [MODEL_NAME] [CUDA_DEVICES] [STARTING_PORT]
+```
+Then run eval:
 ```bash
 cd eval
 python agent_eval.py --model-name [MODEL_NAME] --port-pool [PORT_POOL] --workers [WORKERS] --dataset [DATASET] --prompt [PROMPT] --evaluate
