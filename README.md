@@ -52,28 +52,25 @@ bash scripts/run.sh
 ## Eval
 You can download data from [here](https://huggingface.co/datasets/Frywind/REVPT-data). Put them under `data`.
 
-Datasets and prompts can be found in `eval/agent_eval.py`. You can deploy vllm servers:
+First you need to deploy vllm servers. You can use our script:
 ```bash
 bash scripts/deploy.sh [MODEL_PATH] [MODEL_NAME] [CUDA_DEVICES] [STARTING_PORT]
 ```
-Then run eval:
+Datasets and prompts can be found in `eval/agent_eval.py`. You can run evaluation like this:
 ```bash
 cd eval
 python agent_eval.py --model-name [MODEL_NAME] --port-pool [PORT_POOL] --workers [WORKERS] --dataset [DATASET] --prompt [PROMPT] --evaluate
 ```
 The parameter 'evaluate' will use regex to extract answer in \boxed{} to compare with ground truth answer.
 
-You can use `benchmark.sh` to run all datasets
+You can use `benchmark.sh` to run all datasets at once.
 
 ## Citation
 ```bibtex
-@misc{zhou2025reinforcedvisualperceptiontools,
+@article{revpt,
       title={Reinforced Visual Perception with Tools}, 
       author={Zetong Zhou and Dongping Chen and Zixian Ma and Zhihan Hu and Mingyang Fu and Sinan Wang and Yao Wan and Zhou Zhao and Ranjay Krishna},
-      year={2025},
-      eprint={2509.01656},
-      archivePrefix={arXiv},
-      primaryClass={cs.CV},
-      url={https://arxiv.org/abs/2509.01656}, 
+      journal={arXiv preprint arXiv:2509.01656},
+      year={2025}
 }
 ```
