@@ -455,7 +455,7 @@ class DatasetEvaluator:
 
     def evaluate_mmbench(self):
         def load_mmbench():
-            return load_dataset("HuggingFaceM4/MMBench_dev")
+            return load_dataset("HuggingFaceM4/MMBench_dev", split='train')
         
         self._base_evaluate("mmbench", load_mmbench, self.process_mmbench_sample)
 
