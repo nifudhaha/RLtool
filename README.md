@@ -67,10 +67,10 @@ You can use `benchmark.sh` to run all datasets at once.
 
 ## Citation
 ```bibtex
-@article{revpt,
-      title={Reinforced Visual Perception with Tools}, 
-      author={Zetong Zhou and Dongping Chen and Zixian Ma and Zhihan Hu and Mingyang Fu and Sinan Wang and Yao Wan and Zhou Zhao and Ranjay Krishna},
-      journal={arXiv preprint arXiv:2509.01656},
-      year={2025}
+@article{zhou2025reinforced,
+  title={Reinforced Visual Perception with Tools},
+  author={Zhou, Zetong and Chen, Dongping and Ma, Zixian and Hu, Zhihan and Fu, Mingyang and Wang, Sinan and Wan, Yao and Zhao, Zhou and Krishna, Ranjay},
+  journal={arXiv preprint arXiv:2509.01656},
+  year={2025}
 }
 ```
